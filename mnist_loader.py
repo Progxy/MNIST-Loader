@@ -257,15 +257,15 @@ class DatasetGenerator:
         return
 
 if __name__ == "__main__":
-    # First generate the dataset:              -- labels_prefix --                   -- images prefix --               -- path of the letters classes --                                                                     -- number of each letter class --   -- width & height --  
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", ["./example/g_pencil.png", "./example/y_pencil.png", "./example/b_pencil.png", "./example/t_pencil.png"],             [0, 1, 2, 3],                  28, 28)
+    # First generate the dataset:              -- labels_prefix --                   -- images prefix --               -- path of the letters classes --                                                                     -- number of each letter class --   -- width & height --   -- noise count --
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", ["./example/g_pencil.png", "./example/y_pencil.png", "./example/b_pencil.png", "./example/t_pencil.png"],             [0, 1, 2, 3],                  28, 28,               5)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
     dataset_generator.store_dataset_as_mnist_format()
 
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", ["./example/g_bpen.png", "./example/y_bpen.png", "./example/b_bpen.png", "./example/t_bpen.png"], [0, 1, 2, 3], 28, 28)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", ["./example/g_bpen.png", "./example/y_bpen.png", "./example/b_bpen.png", "./example/t_bpen.png"], [0, 1, 2, 3], 28, 28, 5)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
