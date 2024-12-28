@@ -1,7 +1,8 @@
-## Use
-To use the following python file execute:
+## How to Use
+
+Execute the following commands:
 ```bash
-pip install -r /path/to/requirements.txt
+    pip install -r /path/to/requirements.txt
+    mkdir -p dataset
+    python3 mnist_loader.py
 ```
-Then execute `mkdir -p dataset`
-Then execute `mnist_loader.py` with the python interpreter
