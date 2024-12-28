@@ -3,6 +3,7 @@ import numpy as np
 import random
 import struct
 import matplotlib.pyplot as plt
+import os
 
 class Transformations:
     def __init__(self, images): 
@@ -258,13 +259,42 @@ class DatasetGenerator:
             plt.show()
         return
 
+def find_dataset_images(folder_path, exclude_substring = ""):
+    paths_and_labels = {}
+
+    paths_and_labels[0] = [
+        os.path.join(folder_path, f) for f in os.listdir(folder_path) 
+        if f.endswith('.png') and f.startswith('g') and exclude_substring not in f
+    ]
+    
+    paths_and_labels[1] = [
+        os.path.join(folder_path, f) for f in os.listdir(folder_path) 
+        if f.endswith('.png') and f.startswith('y') and exclude_substring not in f
+    ]
+    
+    paths_and_labels[2] = [
+        os.path.join(folder_path, f) for f in os.listdir(folder_path) 
+        if f.endswith('.png') and f.startswith('b') and exclude_substring not in f
+    ]
+
+    paths_and_labels[3] = [
+        os.path.join(folder_path, f) for f in os.listdir(folder_path) 
+        if f.endswith('.png') and f.startswith('t') and exclude_substring not in f
+    ]
+
+    return paths_and_labels
+
 if __name__ == "__main__":
-    # First generate the dataset:              -- labels_prefix --                   -- images prefix --               -- path of the letters classes --                                                                                          -- width & height --   -- noise count --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", {0: ["./example/g_pencil.png"], 1: ["./example/y_pencil.png"], 2: ["./example/b_pencil.png"], 3: ["./example/t_pencil.png"]},        28, 28,               5)
+    # Find all the paths
+    paths_and_labels = find_dataset_images("./example", "bpen")
+
+    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                             -- width & height --   -- noise count --
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", paths_and_labels,        28, 28,                 5)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
     dataset_generator.store_dataset_as_mnist_format()
+
 
     # Do the same for the test dataset
     dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", {0: ["./example/g_bpen.png"], 1: ["./example/y_bpen.png"], 2: ["./example/b_bpen.png"], 3: ["./example/t_bpen.png"]}, 28, 28, 5)
