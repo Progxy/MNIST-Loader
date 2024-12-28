@@ -10,7 +10,7 @@ class Transformations:
         self.images = images
         pass
 
-    def apply_scaling(self, scales=[0.6, 0.8, 1.0, 1.2]):
+    def apply_scaling(self, scales=[0.8, 1.0, 1.2]):
         for scale in scales:
             for img in self.images[:]:
                 scaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
@@ -52,7 +52,7 @@ class Transformations:
                 adjusted = cv2.convertScaleAbs(img, alpha=alpha, beta=0)
                 self.images.append(adjusted)
 
-    def apply_gaussian_noise(self, noise_levels=[10, 20, 30]):
+    def apply_gaussian_noise(self, noise_levels=[10, 20]):
         for noise_level in noise_levels:
             for img in self.images[:]:
                 noise = np.random.normal(0, noise_level, img.shape).astype(np.uint8)
@@ -285,11 +285,11 @@ def find_dataset_images(folder_path, exclude_substring = ""):
     return paths_and_labels
 
 if __name__ == "__main__":
-    # Find all the paths
+    # Find all the paths except the ones used for the test dataset
     paths_and_labels = find_dataset_images("./example", "bpen")
 
-    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                             -- width & height --   -- noise count --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", paths_and_labels,        28, 28,                 5)
+    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                             -- width & height --
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", paths_and_labels,        28, 28)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
@@ -297,7 +297,7 @@ if __name__ == "__main__":
 
 
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", {0: ["./example/g_bpen.png"], 1: ["./example/y_bpen.png"], 2: ["./example/b_bpen.png"], 3: ["./example/t_bpen.png"]}, 28, 28, 5)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", {0: ["./example/g_bpen.png"], 1: ["./example/y_bpen.png"], 2: ["./example/b_bpen.png"], 3: ["./example/t_bpen.png"]}, 28, 28, 2)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
