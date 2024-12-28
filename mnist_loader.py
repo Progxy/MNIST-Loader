@@ -9,7 +9,7 @@ class Transformations:
         self.images = images
         pass
 
-    def apply_scaling(self, scales=[0.8, 1.0, 1.2]):
+    def apply_scaling(self, scales=[0.6, 0.8, 1.0, 1.2]):
         for scale in scales:
             for img in self.images[:]:
                 scaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
@@ -51,7 +51,7 @@ class Transformations:
                 adjusted = cv2.convertScaleAbs(img, alpha=alpha, beta=0)
                 self.images.append(adjusted)
 
-    def apply_gaussian_noise(self, noise_levels=[10, 20]):
+    def apply_gaussian_noise(self, noise_levels=[10, 20, 30]):
         for noise_level in noise_levels:
             for img in self.images[:]:
                 noise = np.random.normal(0, noise_level, img.shape).astype(np.uint8)
@@ -61,14 +61,12 @@ class Transformations:
     def apply_all_transformations(self):
         print("applying scaling...")
         self.apply_scaling()
-        # print("applying translation...")
-        # self.apply_translation()
-        # print("applying shearing...")
-        # self.apply_shearing()
         print("applying rotation...")
         self.apply_rotation()
         print("applying flipping...")
         self.apply_flipping()
+        print("applying contrast adjustment...")
+        self.apply_contrast_adjustment()
         print("applying gaussian noise...")
         self.apply_gaussian_noise()
         return
