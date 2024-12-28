@@ -69,8 +69,8 @@ class Transformations:
         self.apply_rotation()
         print("applying flipping...")
         self.apply_flipping()
-        print("applying contrast adjustment...")
-        self.apply_contrast_adjustment()
+        # print("applying contrast adjustment...")
+        # self.apply_contrast_adjustment()
         print("applying gaussian noise...")
         self.apply_gaussian_noise()
         return
@@ -334,9 +334,9 @@ if __name__ == "__main__":
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
-    # To load the dataset specify the prefixes as above
-    dataset_viewer = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images",use_compression=True)
-    # load the labels and the images
-    x_train, y_train = dataset_generator.load_mnist_format_dataset()
-    # Plot every image inside x_train
-    dataset_generator.show_dataset(x_train, y_train)
+    # # To load the dataset specify the prefixes as above
+    # dataset_viewer = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images",use_compression=True)
+    # # load the labels and the images
+    # x_train, y_train = dataset_generator.load_mnist_format_dataset()
+    # # Plot every image inside x_train
+    # dataset_generator.show_dataset(x_train, y_train)
