@@ -86,7 +86,7 @@ class Transformations:
         return self.images
 
 class DatasetGenerator:
-    def __init__(self, labels_file_prefix, images_file_prefix, images_paths = [], labels = [], width = 28, height = 28, noise_cnt = 10):
+    def __init__(self, labels_file_prefix, images_file_prefix, images_paths_and_labels = {}, width = 28, height = 28, noise_cnt = 10):
         self.labels_file_prefix = labels_file_prefix
         assert (self.labels_file_prefix != "")
         self.images_file_prefix = images_file_prefix
@@ -95,12 +95,10 @@ class DatasetGenerator:
         self.dataset = {}
         self.width = width
         self.height = height
-        self.labels = labels
+        self.labels = list(images_paths_and_labels.keys())
 
-        self.images = []
-        self.images_paths = images_paths
-        if self.images_paths != []: 
-            self.read_images()
+        self.images = {}
+        self.read_images(images_paths_and_labels)
         
         self.noise_images = []
         for _ in range(noise_cnt):
@@ -108,13 +106,16 @@ class DatasetGenerator:
 
         pass
     
-    def read_images(self):
-        for image_path in self.images_paths:
-            image = cv2.imread(image_path)
-            image = cv2.resize(image, (self.width, self.height))
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-            self.images.append(binary)
+    def read_images(self, images_paths_and_labels):
+        for label in images_paths_and_labels:
+            images = []
+            for image_path in images_paths_and_labels[label]:
+                image = cv2.imread(image_path)
+                image = cv2.resize(image, (self.width, self.height))
+                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+                images.append(binary)
+            self.images[label] = images
         return
     
     def generate_random_noise(self):
@@ -170,12 +171,15 @@ class DatasetGenerator:
         return canvas
     
     def generate_dataset(self):
-        for idx, img in enumerate(self.images):
-            print(f"Generating images from transformation of image {idx}...")
-            img_transformations = Transformations([img])
-            img_transformations.apply_all_transformations()
-            self.dataset[self.labels[idx]] = img_transformations.get_images()
-            print(f"Successfully generated {len(self.dataset[self.labels[idx]])} images.")
+        for label in self.images:
+            print(f"Generating images of label {label}")
+            self.dataset[label] = []
+            for idx, img in enumerate(self.images[label]):
+                print(f"Generating images from transformation of image {idx}...")
+                img_transformations = Transformations([img])
+                img_transformations.apply_all_transformations()
+                self.dataset[label] += img_transformations.get_images()
+                print(f"Successfully generated {len(self.dataset[label])} images.")
         print(f"Generating images from transformation of noise images...")
         noise_img_transformations = Transformations(self.noise_images)
         noise_img_transformations.noise_transformations()
@@ -255,15 +259,15 @@ class DatasetGenerator:
         return
 
 if __name__ == "__main__":
-    # First generate the dataset:              -- labels_prefix --                   -- images prefix --               -- path of the letters classes --                                                                     -- number of each letter class --   -- width & height --   -- noise count --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", ["./example/g_pencil.png", "./example/y_pencil.png", "./example/b_pencil.png", "./example/t_pencil.png"],             [0, 1, 2, 3],                  28, 28,               5)
+    # First generate the dataset:              -- labels_prefix --                   -- images prefix --               -- path of the letters classes --                                                                                          -- width & height --   -- noise count --
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", {0: ["./example/g_pencil.png"], 1: ["./example/y_pencil.png"], 2: ["./example/b_pencil.png"], 3: ["./example/t_pencil.png"]},        28, 28,               5)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
     dataset_generator.store_dataset_as_mnist_format()
 
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", ["./example/g_bpen.png", "./example/y_bpen.png", "./example/b_bpen.png", "./example/t_bpen.png"], [0, 1, 2, 3], 28, 28, 5)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", {0: ["./example/g_bpen.png"], 1: ["./example/y_bpen.png"], 2: ["./example/b_bpen.png"], 3: ["./example/t_bpen.png"]}, 28, 28, 5)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
