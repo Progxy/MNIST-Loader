@@ -180,7 +180,7 @@ class DatasetGenerator:
                 img_transformations = Transformations([img])
                 img_transformations.apply_all_transformations()
                 self.dataset[label] += img_transformations.get_images()
-                print(f"Successfully generated {len(self.dataset[label])} images.")
+            print(f"Successfully generated {len(self.dataset[label])} images.")
         print(f"Generating images from transformation of noise images...")
         noise_img_transformations = Transformations(self.noise_images)
         noise_img_transformations.noise_transformations()
