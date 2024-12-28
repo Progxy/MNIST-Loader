@@ -238,18 +238,10 @@ class DatasetGenerator:
 
         images = []
         with open(image_path, 'rb') as f:
-            # Read the header: magic number, size, rows, cols
             magic, size, rows, cols = struct.unpack('>IIII', f.read(16))
-            
-            # Validate the magic number
-            if magic != 2051:
-                raise ValueError(f"Invalid magic number: {magic}, expected 2051")
-            
-            # Read the rest of the file as image data
+            assert (magic == 2051)
             num_pixels = size * rows * cols
             image_data = np.frombuffer(f.read(num_pixels), dtype=np.uint8)
-            
-            # Reshape into (size, rows, cols)
             images = image_data.reshape((size, rows, cols))
             
         return images, labels
