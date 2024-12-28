@@ -62,15 +62,16 @@ class Transformations:
                 noisy_image = cv2.add(img, noise)
                 self.images.append(noisy_image)
 
-    def apply_all_transformations(self):
+    def apply_all_transformations(self, extended_transformations):
         print("applying scaling...")
         self.apply_scaling()
         print("applying rotation...")
         self.apply_rotation()
         print("applying flipping...")
         self.apply_flipping()
-        # print("applying contrast adjustment...")
-        # self.apply_contrast_adjustment()
+        if extended_transformations:
+            print("applying contrast adjustment...")
+            self.apply_contrast_adjustment()
         print("applying gaussian noise...")
         self.apply_gaussian_noise()
         return
@@ -90,7 +91,7 @@ class Transformations:
         return self.images
 
 class DatasetGenerator:
-    def __init__(self, labels_file_prefix, images_file_prefix, images_paths_and_labels = {}, width = 28, height = 28, noise_cnt = 10, use_compression = False):
+    def __init__(self, labels_file_prefix, images_file_prefix, images_paths_and_labels = {}, width = 28, height = 28, noise_cnt = 10, use_compression = False, extended_dataset = False):
         self.labels_file_prefix = labels_file_prefix
         assert (self.labels_file_prefix != "")
         self.images_file_prefix = images_file_prefix
@@ -100,6 +101,7 @@ class DatasetGenerator:
         self.width = width
         self.height = height
         self.use_compression = use_compression
+        self.extended_dataset = extended_dataset
         self.labels = list(images_paths_and_labels.keys())
 
         self.images = {}
@@ -182,7 +184,7 @@ class DatasetGenerator:
             for idx, img in enumerate(self.images[label]):
                 print(f"Generating images from transformation of image {idx}...")
                 img_transformations = Transformations([img])
-                img_transformations.apply_all_transformations()
+                img_transformations.apply_all_transformations(self.extended_transformations)
                 self.dataset[label] += img_transformations.get_images()
             print(f"Successfully generated {len(self.dataset[label])} images.")
         print(f"Generating images from transformation of noise images...")
@@ -321,8 +323,8 @@ if __name__ == "__main__":
     # Find all the paths except the ones used for the test dataset
     paths_and_labels = find_dataset_images("./example", "bpen")
 
-    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                             -- width & height --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", paths_and_labels,        28, 28, use_compression=True)
+    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                             -- width & height --                       -- extend dataset with more transformations --
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", paths_and_labels,        28, 28,        use_compression=True,         extended_dataset=False)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
@@ -330,7 +332,7 @@ if __name__ == "__main__":
 
 
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", {0: ["./example/g_bpen.png"], 1: ["./example/y_bpen.png"], 2: ["./example/b_bpen.png"], 3: ["./example/t_bpen.png"]}, 28, 28, 2,use_compression=True)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", {0: ["./example/g_bpen.png"], 1: ["./example/y_bpen.png"], 2: ["./example/b_bpen.png"], 3: ["./example/t_bpen.png"]}, 28, 28, 2,use_compression=True, extended_dataset=True)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
