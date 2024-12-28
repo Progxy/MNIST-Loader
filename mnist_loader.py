@@ -266,7 +266,7 @@ class DatasetGenerator:
 
 if __name__ == "__main__":
     # First generate the dataset:              -- labels_prefix --                   -- images prefix --               -- path of the letters classes --                                                                     -- number of each letter class --   -- width & height --  
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", ["./dataset/g_pencil.png", "./dataset/y_pencil.png", "./dataset/b_pencil.png", "./dataset/t_pencil.png"],             [0, 1, 2, 3],                  28, 28)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", ["./example/g_pencil.png", "./example/y_pencil.png", "./example/b_pencil.png", "./example/t_pencil.png"],             [0, 1, 2, 3],                  28, 28)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
