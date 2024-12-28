@@ -272,14 +272,14 @@ if __name__ == "__main__":
     # Save the dataset using the mnist format
     dataset_generator.store_dataset_as_mnist_format()
 
+    # Do the same for the test dataset
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", ["./example/g_bpen.png", "./example/y_bpen.png", "./example/b_bpen.png", "./example/t_bpen.png"], [0, 1, 2, 3], 28, 28)
+    dataset_generator.generate_dataset()
+    dataset_generator.store_dataset_as_mnist_format()
+
     # To load the dataset specify the prefixes as above
     dataset_viewer = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images")
     # load the labels and the images
     x_train, y_train = dataset_generator.load_mnist_format_dataset()
     # Plot every image inside x_train
     dataset_generator.show_dataset(x_train, y_train)
-
-    # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", ["./example/g_bpen.png", "./example/y_bpen.png", "./example/b_bpen.png", "./example/t_bpen.png"], [0, 1, 2, 3], 28, 28)
-    dataset_generator.generate_dataset()
-    dataset_generator.store_dataset_as_mnist_format()
