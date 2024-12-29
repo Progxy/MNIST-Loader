@@ -183,7 +183,7 @@ class DatasetGenerator:
             print(f"Generating images of label {label}")
             self.dataset[label] = []
             for idx, img in enumerate(self.images[label]):
-                print(f"Generating images from transformation of image {idx}...")
+                print(f" -> Generating images from transformation of image {idx}...")
                 img_transformations = Transformations([img])
                 img_transformations.apply_all_transformations(self.extended_dataset)
                 self.dataset[label] += img_transformations.get_images()
