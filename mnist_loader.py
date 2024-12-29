@@ -328,8 +328,8 @@ if __name__ == "__main__":
     # Find all the paths except the ones used for the test dataset
     train_paths_and_labels = find_dataset_images("./example", exclude_substrings=["bpen", "boh.png"])
 
-    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                             -- width & height --                       -- extend dataset with more transformations --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        28, 28,        use_compression=True,         extended_dataset=False)
+    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --                        -- extend dataset with more transformations --
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        28, 28,        use_compression=True,          extended_dataset=False)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
