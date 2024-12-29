@@ -49,13 +49,13 @@ class Transformations:
             self.images.append(cv2.flip(img, 1))  # Horizontal flip
             self.images.append(cv2.flip(img, 0))  # Vertical flip
 
-    def apply_contrast_adjustment(self, contrast_factors=[0.8, 1.2]):
+    def apply_contrast_adjustment(self, contrast_factors=[0.8, 1.0, 1.2]):
         for alpha in contrast_factors:
             for img in self.images[:]:
                 adjusted = cv2.convertScaleAbs(img, alpha=alpha, beta=0)
                 self.images.append(adjusted)
 
-    def apply_gaussian_noise(self, noise_levels=[10, 20]):
+    def apply_gaussian_noise(self, noise_levels=[10, 20, 30]):
         for noise_level in noise_levels:
             for img in self.images[:]:
                 noise = np.random.normal(0, noise_level, img.shape).astype(np.uint8)
@@ -92,11 +92,14 @@ class Transformations:
         return self.images
 
 class DatasetGenerator:
-    def __init__(self, labels_file_prefix, images_file_prefix, images_paths_and_labels = {}, width = 28, height = 28, noise_cnt = 10, use_compression = False, extended_dataset = False):
+    def __init__(self, labels_file_prefix, images_file_prefix, images_paths_and_labels = {}, width = 28, height = 28, noise_cnt = 10, limit_size = 0, use_compression = False, extended_dataset = False):
         self.labels_file_prefix = labels_file_prefix
         assert (self.labels_file_prefix != "")
         self.images_file_prefix = images_file_prefix
         assert (self.images_file_prefix != "")
+
+        if limit_size == 0: self.limit_size = (1 << 32)
+        else: self.limit_size = limit_size
 
         self.dataset = {}
         self.width = width
@@ -178,6 +181,12 @@ class DatasetGenerator:
 
         return canvas
     
+    def get_dataset_size(self):
+        size = 0
+        for label in self.labels:
+            size += len(self.dataset[label])
+        return size
+
     def generate_dataset(self):
         for label in self.images:
             print(f"Generating images of label {label}")
@@ -194,6 +203,24 @@ class DatasetGenerator:
         self.dataset[len(self.labels)] = noise_img_transformations.get_images()
         print(f"Successfully generated {len(self.dataset[len(self.labels)])} images.")
         self.labels.append(len(self.labels))
+
+        dataset_size = self.get_dataset_size()
+        if self.limit_size < dataset_size: 
+            print(f"Resizing dataset from {dataset_size} to {self.limit_size}...")
+        
+        label_idx = 0
+        while self.limit_size < dataset_size:
+            
+            max = 0
+            for label in self.labels:
+                label_len = len(self.dataset[label])
+                if max < label_len: 
+                    max = label_len
+                    label_idx = label
+
+            self.dataset[label_idx].pop(random.randint(0, len(self.dataset[label_idx]) - 1))
+            dataset_size -= 1
+
         return
     
     def store_dataset_as_mnist_format(self):
@@ -332,8 +359,8 @@ if __name__ == "__main__":
     # Find all the paths except the ones used for the test dataset
     train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4])
 
-    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --                        -- extend dataset with more transformations --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        28, 28,        use_compression=True,          extended_dataset=True)
+    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --   -- max dataset size --                       -- extend dataset with more transformations --
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        28, 28,           limit_size=50_000,    use_compression=True,          extended_dataset=True)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
@@ -341,13 +368,13 @@ if __name__ == "__main__":
 
     validation_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[2:])
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, 28, 28, 7, use_compression=True, extended_dataset=False)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, 28, 28, 7, limit_size=11_000, use_compression=True, extended_dataset=False)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
     test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[:2] + substrings[4:])
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, 28, 28, 7, use_compression=True, extended_dataset=False)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, 28, 28, 7, limit_size=11_000, use_compression=True, extended_dataset=False)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
