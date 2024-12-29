@@ -55,7 +55,7 @@ class Transformations:
                 adjusted = cv2.convertScaleAbs(img, alpha=alpha, beta=0)
                 self.images.append(adjusted)
 
-    def apply_gaussian_noise(self, noise_levels=[10, 20, 30]):
+    def apply_gaussian_noise(self, noise_levels=[10, 20]):
         for noise_level in noise_levels:
             for img in self.images[:]:
                 noise = np.random.normal(0, noise_level, img.shape).astype(np.uint8)
@@ -76,13 +76,14 @@ class Transformations:
         self.apply_gaussian_noise()
         return
     
-    def noise_transformations(self):
+    def noise_transformations(self, extended_transformation):
         print("applying scaling...")
         self.apply_scaling()
         print("applying translation...")
         self.apply_translation()
-        print("applying shearing...")
-        self.apply_shearing()
+        if extended_transformation:
+            print("applying shearing...")
+            self.apply_shearing()
         print("applying rotation...")
         self.apply_rotation()
         return
@@ -184,12 +185,12 @@ class DatasetGenerator:
             for idx, img in enumerate(self.images[label]):
                 print(f"Generating images from transformation of image {idx}...")
                 img_transformations = Transformations([img])
-                img_transformations.apply_all_transformations(self.extended_transformations)
+                img_transformations.apply_all_transformations(self.extended_dataset)
                 self.dataset[label] += img_transformations.get_images()
             print(f"Successfully generated {len(self.dataset[label])} images.")
         print(f"Generating images from transformation of noise images...")
         noise_img_transformations = Transformations(self.noise_images)
-        noise_img_transformations.noise_transformations()
+        noise_img_transformations.noise_transformations(self.extended_dataset)
         self.dataset[len(self.labels)] = noise_img_transformations.get_images()
         print(f"Successfully generated {len(self.dataset[len(self.labels)])} images.")
         self.labels.append(len(self.labels))
@@ -294,45 +295,49 @@ class DatasetGenerator:
             plt.show()
         return
 
-def find_dataset_images(folder_path, exclude_substring = ""):
+def find_dataset_images(folder_path, exclude_substrings=[]):
     paths_and_labels = {}
 
+    def should_exclude(file_name):
+        # Check if any substring in exclude_substrings is present in the file_name
+        return any(substring in file_name for substring in exclude_substrings)
+
     paths_and_labels[0] = [
-        os.path.join(folder_path, f) for f in os.listdir(folder_path) 
-        if f.endswith('.png') and f.startswith('g') and exclude_substring not in f
+        os.path.join(folder_path, f) for f in os.listdir(folder_path)
+        if f.endswith('.png') and f.startswith('g') and not should_exclude(f)
     ]
     
     paths_and_labels[1] = [
-        os.path.join(folder_path, f) for f in os.listdir(folder_path) 
-        if f.endswith('.png') and f.startswith('y') and exclude_substring not in f
+        os.path.join(folder_path, f) for f in os.listdir(folder_path)
+        if f.endswith('.png') and f.startswith('y') and not should_exclude(f)
     ]
     
     paths_and_labels[2] = [
-        os.path.join(folder_path, f) for f in os.listdir(folder_path) 
-        if f.endswith('.png') and f.startswith('b') and exclude_substring not in f
+        os.path.join(folder_path, f) for f in os.listdir(folder_path)
+        if f.endswith('.png') and f.startswith('b') and not should_exclude(f)
     ]
-
+    
     paths_and_labels[3] = [
-        os.path.join(folder_path, f) for f in os.listdir(folder_path) 
-        if f.endswith('.png') and f.startswith('t') and exclude_substring not in f
+        os.path.join(folder_path, f) for f in os.listdir(folder_path)
+        if f.endswith('.png') and f.startswith('t') and not should_exclude(f)
     ]
 
     return paths_and_labels
 
 if __name__ == "__main__":
     # Find all the paths except the ones used for the test dataset
-    paths_and_labels = find_dataset_images("./example", "bpen")
+    train_paths_and_labels = find_dataset_images("./example", exclude_substrings=["bpen", "boh.png"])
 
     # First generate the dataset:              -- labels_prefix --                   -- images prefix --                             -- width & height --                       -- extend dataset with more transformations --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", paths_and_labels,        28, 28,        use_compression=True,         extended_dataset=False)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        28, 28,        use_compression=True,         extended_dataset=False)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
     dataset_generator.store_dataset_as_mnist_format()
 
-
+    test_paths_and_labels = find_dataset_images("./example",exclude_substrings=["pencil", "bohpenn", "hpencil", "vpencil", "blpen", "vpen"])
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", {0: ["./example/g_bpen.png"], 1: ["./example/y_bpen.png"], 2: ["./example/b_bpen.png"], 3: ["./example/t_bpen.png"]}, 28, 28, 2,use_compression=True, extended_dataset=True)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, 28, 28, 7, use_compression=True, extended_dataset=False)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
