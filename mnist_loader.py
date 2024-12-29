@@ -197,12 +197,6 @@ class DatasetGenerator:
                 img_transformations.apply_all_transformations(self.extended_dataset)
                 self.dataset[label] += img_transformations.get_images()
             print(f"Successfully generated {len(self.dataset[label])} images.")
-        print(f"Generating images from transformation of noise images...")
-        noise_img_transformations = Transformations(self.noise_images)
-        noise_img_transformations.noise_transformations(self.extended_dataset)
-        self.dataset[len(self.labels)] = noise_img_transformations.get_images()
-        print(f"Successfully generated {len(self.dataset[len(self.labels)])} images.")
-        self.labels.append(len(self.labels))
 
         dataset_size = self.get_dataset_size()
         if self.limit_size < dataset_size: 
@@ -348,6 +342,11 @@ def find_dataset_images(folder_path, exclude_substrings=[]):
     paths_and_labels[3] = [
         os.path.join(folder_path, f) for f in os.listdir(folder_path)
         if f.endswith('.png') and f.startswith('t') and not should_exclude(f)
+    ]
+
+    paths_and_labels[4] = [
+        os.path.join(folder_path, f) for f in os.listdir(folder_path)
+        if f.endswith('.png') and f.startswith('invalid') and not should_exclude(f)
     ]
 
     return paths_and_labels
