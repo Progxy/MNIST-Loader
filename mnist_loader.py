@@ -63,28 +63,19 @@ class Transformations:
                 self.images.append(noisy_image)
 
     def apply_all_transformations(self, extended_transformations):
-        print("applying scaling...")
         self.apply_scaling()
-        print("applying rotation...")
         self.apply_rotation()
-        print("applying flipping...")
         self.apply_flipping()
         if extended_transformations:
-            print("applying contrast adjustment...")
             self.apply_contrast_adjustment()
-        print("applying gaussian noise...")
         self.apply_gaussian_noise()
         return
     
     def noise_transformations(self, extended_transformation):
-        print("applying scaling...")
         self.apply_scaling()
-        print("applying translation...")
         self.apply_translation()
         if extended_transformation:
-            print("applying shearing...")
             self.apply_shearing()
-        print("applying rotation...")
         self.apply_rotation()
         return
 
