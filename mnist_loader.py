@@ -372,9 +372,9 @@ if __name__ == "__main__":
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
-    test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[:2] + substrings[4:])
+    test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[4:])
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, 28, 28, 7, limit_size=11_000, use_compression=True, extended_dataset=False)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, 28, 28, 7, limit_size=17_000, use_compression=True, extended_dataset=False)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
