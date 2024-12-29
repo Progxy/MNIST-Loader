@@ -212,7 +212,7 @@ class DatasetGenerator:
                     max = label_len
                     label_idx = label
 
-            self.dataset[label_idx].pop(random.randint(0, len(self.dataset[label_idx]) - 1))
+            self.dataset[label_idx].pop(random.randint(1, len(self.dataset[label_idx]) - 1))
             dataset_size -= 1
 
         return
@@ -359,7 +359,7 @@ if __name__ == "__main__":
     train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4])
 
     # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --   -- max dataset size --                       -- extend dataset with more transformations --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        28, 28,           limit_size=75_000,    use_compression=True,          extended_dataset=True)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        28, 28,           limit_size=75_000,    use_compression=True,          extended_dataset=False)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
@@ -373,7 +373,7 @@ if __name__ == "__main__":
 
     test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[4:])
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, 28, 28, 7, limit_size=25_000, use_compression=True, extended_dataset=True)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, 28, 28, 7, limit_size=25_000, use_compression=True, extended_dataset=False)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
