@@ -343,8 +343,8 @@ def find_dataset_images(folder_path, exclude_substrings=[]):
     return paths_and_labels
 
 if __name__ == "__main__":
-    #        --   validation test --      test set      --            train set                 --
-    substrings = ["bpen", "pencil", "boh.png", "vpencil", "bohpenn", "hpencil", "blpen", "vpen"]
+    #        --   validation test --      test set      --                                  train set                 --
+    substrings = ["bpen", "pencil", "boh.png", "vpencil", "bohpenn", "hpencil", "blpen", "vpen", "g_", "y_", "b_", "t_"]
 
     # Find all the paths except the ones used for the test dataset
     train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4])
