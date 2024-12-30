@@ -345,12 +345,14 @@ def find_dataset_images(folder_path, exclude_substrings=[]):
 if __name__ == "__main__":
     #        --   validation test --      test set      --                                  train set                 --
     substrings = ["bpen", "pencil", "boh.png", "vpencil", "bohpenn", "hpencil", "blpen", "vpen", "g_", "y_", "b_", "t_"]
+    width = 32
+    height = 32
 
     # Find all the paths except the ones used for the test dataset
     train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4])
 
     # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --   -- max dataset size --                       -- extend dataset with more transformations --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        28, 28,           limit_size=75_000,    use_compression=True,          extended_dataset=False)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        width=width, height=32,           limit_size=75_000,    use_compression=True,          extended_dataset=False)
     # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
     dataset_generator.generate_dataset()
     # Save the dataset using the mnist format
@@ -358,13 +360,13 @@ if __name__ == "__main__":
 
     # validation_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[2:])
     # # Do the same for the test dataset
-    # dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, 28, 28, 7, limit_size=11_000, use_compression=True, extended_dataset=False)
+    # dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, width, height, 7, limit_size=11_000, use_compression=True, extended_dataset=False)
     # dataset_generator.generate_dataset()
     # dataset_generator.store_dataset_as_mnist_format()
 
     test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[4:])
     # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, 28, 28, 7, limit_size=25_000, use_compression=True, extended_dataset=False)
+    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=25_000, use_compression=True, extended_dataset=False)
     dataset_generator.generate_dataset()
     dataset_generator.store_dataset_as_mnist_format()
 
