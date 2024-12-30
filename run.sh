@@ -14,7 +14,7 @@ mkdir -p $PROJECT_DIR
 cd $PROJECT_DIR
 
 # Create a virtual environment
-/usr/local/bin/python3.12 -m venv venv
+/usr/bin/python3 -m venv venv
 
 # Activate the virtual environment
 source venv/bin/activate
@@ -26,7 +26,7 @@ cp ../$REQUIREMENTS_FILE .
 cp ../$PYTHON_SCRIPT .
 
 # Upgrade pip
-python3 -m pip install --upgrade pip
+python3 -m pip install -U pip
 
 # Install the requirements
 pip install -r $REQUIREMENTS_FILE

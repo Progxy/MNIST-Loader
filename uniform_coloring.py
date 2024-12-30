@@ -1,8 +1,8 @@
 import tensorflow as tf
+from tensorflow.keras import regularizers
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, Dense, Dropout, Input, BatchNormalization
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, Dense, Input, BatchNormalization
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
-from tensorflow.keras.models import load_model
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 from enum import Enum
@@ -49,6 +49,7 @@ class Classifier:
         pass
 
     def train_model(self):
+        print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
         if tf.config.list_physical_devices('GPU'):
             strategy = tf.distribute.MirroredStrategy()  # Use all available GPUs
             print("Running on GPU")
@@ -82,7 +83,6 @@ class Classifier:
               x_validation = x_validation.reshape(-1, self.height, self.width, 1).astype('float32') / 255.0  # Normalize and reshape
               y_validation = y_validation - self.labels_diff  # Adjust labels to 0 index
 
-
             self.model = Sequential([
                 Input(shape=(self.height, self.width, 1)),
 
@@ -110,8 +110,7 @@ class Classifier:
                 GlobalAveragePooling2D(),
 
                 # Fully Connected Layers
-                Dense(512, activation='relu'),
-                Dropout(0.5),
+                Dense(512, activation='relu', kernel_regularizer=regularizers.l2(0.05)),
                 Dense(self.labels_cnt, activation='softmax')
             ])
 
