@@ -15,7 +15,7 @@ class Transformations:
         for scale in scales:
             for img in self.images[:]:
                 height, width = img.shape[:2]
-                scaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
+                scaled = cv2.resize(img.copy(), None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
                 image = cv2.resize(scaled, (width, height))
                 self.images.append(image)
 
@@ -24,7 +24,7 @@ class Transformations:
             for img in self.images[:]:
                 height, width = img.shape[:2]
                 M = np.float32([[1, 0, tx], [0, 1, ty]])
-                translated = cv2.warpAffine(img, M, (width, height))
+                translated = cv2.warpAffine(img.copy(), M, (width, height))
                 self.images.append(translated)
 
     def apply_shearing(self, shear_factors=[-0.2, 0.0, 0.2]):
@@ -32,7 +32,7 @@ class Transformations:
             for img in self.images[:]:
                 height, width = img.shape[:2]
                 M = np.float32([[1, shear, 0], [0, 1, 0]])
-                sheared = cv2.warpAffine(img, M, (width, height))
+                sheared = cv2.warpAffine(img.copy(), M, (width, height))
                 self.images.append(sheared)
 
     def apply_rotation(self, angles=[-15, -10, 0, 10, 15]):
@@ -41,29 +41,30 @@ class Transformations:
                 height, width = img.shape[:2]
                 center = (width // 2, height // 2)
                 M = cv2.getRotationMatrix2D(center, angle, 1.0)
-                rotated = cv2.warpAffine(img, M, (width, height))
+                rotated = cv2.warpAffine(img.copy(), M, (width, height))
                 self.images.append(rotated)
 
     def apply_flipping(self):
         for img in self.images[:]:
-            self.images.append(cv2.flip(img, 1))  # Horizontal flip
-            self.images.append(cv2.flip(img, 0))  # Vertical flip
+            self.images.append(cv2.flip(img.copy(), 1))  # Horizontal flip
+            self.images.append(cv2.flip(img.copy(), 0))  # Vertical flip
 
     def apply_contrast_adjustment(self, contrast_factors=[0.8, 1.0, 1.2]):
         for alpha in contrast_factors:
             for img in self.images[:]:
-                adjusted = cv2.convertScaleAbs(img, alpha=alpha, beta=0)
+                adjusted = cv2.convertScaleAbs(img.copy(), alpha=alpha, beta=0)
                 self.images.append(adjusted)
 
     def apply_gaussian_noise(self, noise_levels=[10, 20, 30]):
         for noise_level in noise_levels:
             for img in self.images[:]:
                 noise = np.random.normal(0, noise_level, img.shape).astype(np.uint8)
-                noisy_image = cv2.add(img, noise)
+                noisy_image = cv2.add(img.copy(), noise)
                 self.images.append(noisy_image)
 
     def apply_all_transformations(self, extended_transformations):
-        self.apply_scaling()
+        if extended_transformations:
+            self.apply_scaling()
         self.apply_rotation()
         self.apply_flipping()
         if extended_transformations:
@@ -72,7 +73,8 @@ class Transformations:
         return
     
     def noise_transformations(self, extended_transformation):
-        self.apply_scaling()
+        if extended_transformation:
+            self.apply_scaling()
         self.apply_translation()
         if extended_transformation:
             self.apply_shearing()
@@ -83,24 +85,29 @@ class Transformations:
         return self.images
 
 class DatasetGenerator:
-    def __init__(self, labels_file_prefix, images_file_prefix, images_paths_and_labels = {}, width = 28, height = 28, noise_cnt = 10, limit_size = 0, use_compression = False, extended_dataset = False):
+    def __init__(self, labels_file_prefix, images_file_prefix, images_paths_and_labels = {}, width = 28, height = 28, noise_cnt = 10, limit_size = 0, use_compression = False, extended_dataset = False, balance_dataset = False, read_only=False):
         self.labels_file_prefix = labels_file_prefix
         assert (self.labels_file_prefix != "")
         self.images_file_prefix = images_file_prefix
         assert (self.images_file_prefix != "")
+        
+        self.use_compression = use_compression
+        self.labels = list(images_paths_and_labels.keys())
+        
+        if read_only: pass
 
         if limit_size == 0: self.limit_size = (1 << 32)
         else: self.limit_size = limit_size
+        self.balance_dataset = balance_dataset
 
         self.dataset = {}
         self.width = width
         self.height = height
-        self.use_compression = use_compression
         self.extended_dataset = extended_dataset
-        self.labels = list(images_paths_and_labels.keys())
+        self.images_paths_and_labels = images_paths_and_labels
 
         self.images = {}
-        self.read_images(images_paths_and_labels)
+        self.read_images()
         
         self.noise_images = []
         for _ in range(noise_cnt):
@@ -108,10 +115,10 @@ class DatasetGenerator:
 
         pass
     
-    def read_images(self, images_paths_and_labels):
-        for label in images_paths_and_labels:
+    def read_images(self):
+        for label in self.images_paths_and_labels:
             images = []
-            for image_path in images_paths_and_labels[label]:
+            for image_path in self.images_paths_and_labels[label]:
                 image = cv2.imread(image_path)
                 image = cv2.resize(image, (self.width, self.height))
                 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -180,22 +187,36 @@ class DatasetGenerator:
 
     def generate_dataset(self):
         for label in self.images:
-            print(f"Generating images of label {label}")
-            self.dataset[label] = []
-            for idx, img in enumerate(self.images[label]):
-                print(f" -> Generating images from transformation of image {idx}...")
-                img_transformations = Transformations([img])
-                img_transformations.apply_all_transformations(self.extended_dataset)
-                self.dataset[label] += img_transformations.get_images()
+            print(f"Generating images of label {label}...")
+            img_transformations = Transformations(self.images[label])
+            img_transformations.apply_all_transformations(self.extended_dataset)
+            self.dataset[label] = img_transformations.get_images()
             print(f"Successfully generated {len(self.dataset[label])} images.")
+
+        if self.balance_dataset:
+            print("Balancing dataset...")
+            min_label_len = len(self.dataset[0])
+            for label in self.labels:
+                label_len = len(self.dataset[label])
+                if min_label_len > label_len: 
+                    min_label_len = label_len
+            
+            print(f"Balancing the labels to {min_label_len}...")
+
+            for label in self.labels:
+                label_len = len(self.dataset[label])
+                original_element_cnt = len(self.images_paths_and_labels[label])
+                while label_len > min_label_len:
+                    self.dataset[label].pop(random.randint(original_element_cnt, label_len - 1))
+                    label_len -= 1
 
         dataset_size = self.get_dataset_size()
         if self.limit_size < dataset_size: 
             print(f"Resizing dataset from {dataset_size} to {self.limit_size}...")
         
         label_idx = 0
+        # Pick the label with the maximum amount of elements and remove a random element
         while self.limit_size < dataset_size:
-            
             max = 0
             for label in self.labels:
                 label_len = len(self.dataset[label])
@@ -203,7 +224,7 @@ class DatasetGenerator:
                     max = label_len
                     label_idx = label
 
-            self.dataset[label_idx].pop(random.randint(1, len(self.dataset[label_idx]) - 1))
+            self.dataset[label_idx].pop(random.randint(len(self.images_paths_and_labels[label]), len(self.dataset[label_idx]) - 1))
             dataset_size -= 1
 
         return
@@ -297,8 +318,7 @@ class DatasetGenerator:
             
         return images, labels
 
-    def show_dataset(self, x_train, y_train):
-        mapping = ['g', 'y', 'b', 't', "invalid"]
+    def show_dataset(self, x_train, y_train, mapping):
         for idx, image_data in enumerate(x_train):
             # Display the image
             plt.imshow(image_data, cmap="gray", interpolation="nearest")
@@ -343,36 +363,42 @@ def find_dataset_images(folder_path, exclude_substrings=[]):
     return paths_and_labels
 
 if __name__ == "__main__":
-    #        --   validation test --      test set      --                                  train set                 --
-    substrings = ["bpen", "pencil", "boh.png", "vpencil", "bohpenn", "hpencil", "blpen", "vpen", "g_", "y_", "b_", "t_"]
-    width = 32
-    height = 32
+    generate = True # Change between generating and displaying
+    if generate:
+        #        --   validation test --      test set      --                                  train set                 --
+        substrings = ["bpen", "pencil", "boh.png", "vpencil", "bohpenn", "hpencil", "blpen", "vpen", "g_", "y_", "b_", "t_"]
+        width = 32
+        height = 32
 
-    # Find all the paths except the ones used for the test dataset
-    train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4])
+        # Find all the paths except the ones used for the test dataset
+        train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4])
 
-    # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --   -- max dataset size --                       -- extend dataset with more transformations --
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        width=width, height=32,           limit_size=75_000,    use_compression=True,          extended_dataset=False)
-    # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
-    dataset_generator.generate_dataset()
-    # Save the dataset using the mnist format
-    dataset_generator.store_dataset_as_mnist_format()
+        # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --   -- max dataset size --                                    -- extend dataset with more transformations --
+        dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        width=width, height=32,           limit_size=75_000,    use_compression=True,          extended_dataset=True, balance_dataset = True)
+        # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
+        dataset_generator.generate_dataset()
+        # Save the dataset using the mnist format
+        dataset_generator.store_dataset_as_mnist_format()
 
-    # validation_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[2:])
-    # # Do the same for the test dataset
-    # dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, width, height, 7, limit_size=11_000, use_compression=True, extended_dataset=False)
-    # dataset_generator.generate_dataset()
-    # dataset_generator.store_dataset_as_mnist_format()
+        # validation_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[2:])
+        # # Do the same for the test dataset
+        # dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, width, height, 7, limit_size=11_000, use_compression=True, extended_dataset=False)
+        # dataset_generator.generate_dataset()
+        # dataset_generator.store_dataset_as_mnist_format()
 
-    test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[4:])
-    # Do the same for the test dataset
-    dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=25_000, use_compression=True, extended_dataset=False)
-    dataset_generator.generate_dataset()
-    dataset_generator.store_dataset_as_mnist_format()
+        test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[4:])
+        # Do the same for the test dataset
+        dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=25_000, use_compression=True, extended_dataset=True, balance_dataset = True)
+        dataset_generator.generate_dataset()
+        dataset_generator.store_dataset_as_mnist_format()
 
-    # # To load the dataset specify the prefixes as above
-    # dataset_viewer = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images",use_compression=True)
-    # # load the labels and the images
-    # x_train, y_train = dataset_generator.load_mnist_format_dataset()
-    # # Plot every image inside x_train
-    # dataset_generator.show_dataset(x_train, y_train)
+    else:
+        # To load the dataset specify the prefixes as above
+        dataset_viewer = DatasetGenerator("./gzip/emnist-balanced-train-labels", "./gzip/emnist-balanced-train-images", use_compression=True, read_only=True)
+        # load the labels and the images
+        x_train, y_train = dataset_viewer.load_mnist_format_dataset()
+        # Plot every image inside x_train
+
+        #labels = ['g', 'y', 'b', 't', "invalid"]
+        labels = [chr(48), chr(49), chr(50), chr(51), chr(52), chr(53), chr(54), chr(55), chr(56), chr(57), chr(65), chr(66), chr(67), chr(68), chr(69), chr(70), chr(71), chr(72), chr(73), chr(74), chr(75), chr(76), chr(77), chr(78), chr(79), chr(80), chr(81), chr(82), chr(83), chr(84), chr(85), chr(86), chr(87), chr(88), chr(89), chr(90), chr(97), chr(98), chr(100), chr(101), chr(102), chr(103), chr(104), chr(110), chr(113), chr(114), chr(116)]
+        dataset_viewer.show_dataset(x_train, y_train, labels)
