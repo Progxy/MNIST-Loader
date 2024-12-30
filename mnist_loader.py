@@ -63,8 +63,7 @@ class Transformations:
                 self.images.append(noisy_image)
 
     def apply_all_transformations(self, extended_transformations):
-        if extended_transformations:
-            self.apply_scaling()
+        self.apply_scaling()
         self.apply_rotation()
         self.apply_flipping()
         if extended_transformations:
@@ -380,24 +379,25 @@ if __name__ == "__main__":
         train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4])
 
         # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --   -- max dataset size --                                    -- extend dataset with more transformations --
-        dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        width=width, height=32,           limit_size=0,    use_compression=True,          extended_dataset=True, balance_dataset = True)
-        # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
-        dataset_generator.generate_dataset()
-        # Save the dataset using the mnist format
-        dataset_generator.store_dataset_as_mnist_format()
-
-        # validation_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[2:])
-        # # Do the same for the test dataset
-        # dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, width, height, 7, limit_size=11_000, use_compression=True, extended_dataset=False)
+        # dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        width=width, height=32,           limit_size=0,    use_compression=True,          extended_dataset=False, balance_dataset = True)
+        # # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
         # dataset_generator.generate_dataset()
+        # # Save the dataset using the mnist format
         # dataset_generator.store_dataset_as_mnist_format()
 
-        test_limit = (dataset_generator.get_dataset_size() // 75) * 25 # Set the size to be the 25% while the train to be the 75%
-        test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[4:])
+        validation_limit = (2_703_360 // 75) * 20 # Set the size to be the 25% while the train to be the 75%
+        validation_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[2:])
         # Do the same for the test dataset
-        dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=test_limit, use_compression=True, extended_dataset=True, balance_dataset = True)
+        dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, width, height, 7, limit_size=validation_limit, use_compression=True, extended_dataset=True)
         dataset_generator.generate_dataset()
         dataset_generator.store_dataset_as_mnist_format()
+
+        # test_limit = (dataset_generator.get_dataset_size() // 75) * 25 # Set the size to be the 25% while the train to be the 75%
+        # test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[4:])
+        # # Do the same for the test dataset
+        # dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=test_limit, use_compression=True, extended_dataset=False, balance_dataset = True)
+        # dataset_generator.generate_dataset()
+        # dataset_generator.store_dataset_as_mnist_format()
 
     else:
         # To load the dataset specify the prefixes as above
