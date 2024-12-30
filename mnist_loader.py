@@ -195,37 +195,43 @@ class DatasetGenerator:
 
         if self.balance_dataset:
             print("Balancing dataset...")
-            min_label_len = len(self.dataset[0])
-            for label in self.labels:
-                label_len = len(self.dataset[label])
-                if min_label_len > label_len: 
-                    min_label_len = label_len
-            
+            min_label_len = len(self.dataset[min(self.labels, key=lambda label: len(self.dataset[label]))])
             print(f"Balancing the labels to {min_label_len}...")
 
             for label in self.labels:
                 label_len = len(self.dataset[label])
                 original_element_cnt = len(self.images_paths_and_labels[label])
-                while label_len > min_label_len:
-                    self.dataset[label].pop(random.randint(original_element_cnt, label_len - 1))
-                    label_len -= 1
+                if label_len == min_label_len: continue
+                pop_indices = random.sample(range(original_element_cnt, label_len), label_len - min_label_len)
+                pop_indices.sort(reverse=True)  # Sort indices in descending order
+                for pop_idx in pop_indices:
+                    self.dataset[label].pop(pop_idx)
+
+            print("Balanced all the labels")
 
         dataset_size = self.get_dataset_size()
         if self.limit_size < dataset_size: 
             print(f"Resizing dataset from {dataset_size} to {self.limit_size}...")
         
-        label_idx = 0
-        # Pick the label with the maximum amount of elements and remove a random element
-        while self.limit_size < dataset_size:
-            max = 0
-            for label in self.labels:
-                label_len = len(self.dataset[label])
-                if max < label_len: 
-                    max = label_len
-                    label_idx = label
+        label_cnt = len(self.labels)
+        for label in self.labels:
+            label_len = len(self.dataset[label])
+            min_size = self.limit_size // label_cnt
 
-            self.dataset[label_idx].pop(random.randint(len(self.images_paths_and_labels[label]), len(self.dataset[label_idx]) - 1))
-            dataset_size -= 1
+            label_cnt -= 1
+            self.limit_size -= min(label_len, min_size)
+
+            if label_len <= min_size: continue
+            original_element_cnt = len(self.images_paths_and_labels[label])
+            pop_indices = random.sample(range(original_element_cnt, label_len), label_len - min_size)
+            pop_indices.sort(reverse=True)  # Sort indices in descending order
+            for pop_idx in pop_indices:
+                self.dataset[label].pop(pop_idx)
+
+        dataset_size = self.get_dataset_size()
+        print(f"new dataset_size: {dataset_size}")
+        for label in self.labels:
+            print(f"label {label} len: {len(self.dataset[label])}")
 
         return
     
@@ -374,7 +380,7 @@ if __name__ == "__main__":
         train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4])
 
         # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --   -- max dataset size --                                    -- extend dataset with more transformations --
-        dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        width=width, height=32,           limit_size=75_000,    use_compression=True,          extended_dataset=True, balance_dataset = True)
+        dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        width=width, height=32,           limit_size=0,    use_compression=True,          extended_dataset=True, balance_dataset = True)
         # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
         dataset_generator.generate_dataset()
         # Save the dataset using the mnist format
@@ -386,9 +392,10 @@ if __name__ == "__main__":
         # dataset_generator.generate_dataset()
         # dataset_generator.store_dataset_as_mnist_format()
 
+        test_limit = (dataset_generator.get_dataset_size() // 75) * 25 # Set the size to be the 25% while the train to be the 75%
         test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[4:])
         # Do the same for the test dataset
-        dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=25_000, use_compression=True, extended_dataset=True, balance_dataset = True)
+        dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=test_limit, use_compression=True, extended_dataset=True, balance_dataset = True)
         dataset_generator.generate_dataset()
         dataset_generator.store_dataset_as_mnist_format()
 
