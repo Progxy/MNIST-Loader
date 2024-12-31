@@ -1,5 +1,4 @@
 tensorflow-macos
-tensorflow-metal
 matplotlib
 scikit-learn
 pandas

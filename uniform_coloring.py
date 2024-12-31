@@ -1,7 +1,6 @@
 import tensorflow as tf
-from tensorflow.keras import regularizers
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, Dense, Input, BatchNormalization
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D, Dense, Dropout, Input, BatchNormalization
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
@@ -49,121 +48,113 @@ class Classifier:
         pass
 
     def train_model(self):
-        print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-        if tf.config.list_physical_devices('GPU'):
-            strategy = tf.distribute.MirroredStrategy()  # Use all available GPUs
-            print("Running on GPU")
-        else:
-            strategy = tf.distribute.get_strategy()  # Default strategy for CPU
-            print("Running on CPU")
-
         if self.use_validation_data: print("Using validation data")
 
-        with strategy.scope():
-            # Load and preprocess the training data
-            x_train, y_train = self.load_emnist(
-                f"{self.dataset_prefix}-train-labels-idx1-ubyte",
-                f"{self.dataset_prefix}-train-images-idx3-ubyte"
-            )
-            x_train = x_train.reshape(-1, self.height, self.width, 1).astype('float32') / 255.0  # Normalize and reshape
-            y_train = y_train - self.labels_diff  # Adjust labels to 0 index
+        # Load and preprocess the training data
+        x_train, y_train = self.load_emnist(
+            f"{self.dataset_prefix}-train-labels-idx1-ubyte",
+            f"{self.dataset_prefix}-train-images-idx3-ubyte"
+        )
+        x_train = x_train.reshape(-1, self.height, self.width, 1).astype('float32') / 255.0  # Normalize and reshape
+        y_train = y_train - self.labels_diff  # Adjust labels to 0 index
 
-            x_test, y_test = self.load_emnist(
-                f"{self.dataset_prefix}-test-labels-idx1-ubyte",
-                f"{self.dataset_prefix}-test-images-idx3-ubyte"
-            )
-            x_test = x_test.reshape(-1, self.height, self.width, 1).astype('float32') / 255.0  # Normalize and reshape
-            y_test = y_test - self.labels_diff  # Adjust labels to 0 index
+        x_test, y_test = self.load_emnist(
+            f"{self.dataset_prefix}-test-labels-idx1-ubyte",
+            f"{self.dataset_prefix}-test-images-idx3-ubyte"
+        )
+        x_test = x_test.reshape(-1, self.height, self.width, 1).astype('float32') / 255.0  # Normalize and reshape
+        y_test = y_test - self.labels_diff  # Adjust labels to 0 index
 
-            if self.use_validation_data:
-              x_validation, y_validation = self.load_emnist(
-                  f"{self.dataset_prefix}-validation-labels-idx1-ubyte",
-                  f"{self.dataset_prefix}-validation-images-idx3-ubyte"
-              )
-              x_validation = x_validation.reshape(-1, self.height, self.width, 1).astype('float32') / 255.0  # Normalize and reshape
-              y_validation = y_validation - self.labels_diff  # Adjust labels to 0 index
+        if self.use_validation_data:
+          x_validation, y_validation = self.load_emnist(
+              f"{self.dataset_prefix}-validation-labels-idx1-ubyte",
+              f"{self.dataset_prefix}-validation-images-idx3-ubyte"
+          )
+          x_validation = x_validation.reshape(-1, self.height, self.width, 1).astype('float32') / 255.0  # Normalize and reshape
+          y_validation = y_validation - self.labels_diff  # Adjust labels to 0 index
 
-            self.model = Sequential([
-                Input(shape=(self.height, self.width, 1)),
+        self.model = Sequential([
+            Input(shape=(self.height, self.width, 1)),
 
-                # Convolutional Block 1
-                Conv2D(64, (3, 3), activation='relu', padding='same'),
-                BatchNormalization(),
-                MaxPooling2D((2, 2)),
+            # Convolutional Block 1
+            Conv2D(64, (3, 3), activation='relu', padding='same'),
+            BatchNormalization(),
+            MaxPooling2D((2, 2)),
 
-                # Convolutional Block 2
-                Conv2D(128, (3, 3), activation='relu', padding='same'),
-                BatchNormalization(),
-                MaxPooling2D((2, 2)),
+            # Convolutional Block 2
+            Conv2D(128, (3, 3), activation='relu', padding='same'),
+            BatchNormalization(),
+            MaxPooling2D((2, 2)),
 
-                # Convolutional Block 3
-                Conv2D(256, (3, 3), activation='relu', padding='same'),
-                BatchNormalization(),
-                MaxPooling2D((2, 2)),
+            # Convolutional Block 3
+            Conv2D(256, (3, 3), activation='relu', padding='same'),
+            BatchNormalization(),
+            MaxPooling2D((2, 2)),
 
-                # Convolutional Block 4
-                Conv2D(512, (3, 3), activation='relu', padding='same'),
-                BatchNormalization(),
-                MaxPooling2D((2, 2)),
+            # Convolutional Block 4
+            Conv2D(512, (3, 3), activation='relu', padding='same'),
+            BatchNormalization(),
+            MaxPooling2D((2, 2)),
 
-                # Global Feature Extraction
-                GlobalAveragePooling2D(),
+            # Global Feature Extraction
+            GlobalAveragePooling2D(),
 
-                # Fully Connected Layers
-                Dense(512, activation='relu', kernel_regularizer=regularizers.l2(0.05)),
-                Dense(self.labels_cnt, activation='softmax')
-            ])
+            # Fully Connected Layers
+            Dense(512, activation='relu'),
+            Dropout(0.5),
+            Dense(self.labels_cnt, activation='softmax')
+        ])
 
-            # Compile the model
-            self.model.compile(
-                optimizer='adam',
-                loss='sparse_categorical_crossentropy',
-                metrics=['accuracy']
-            )
+        # Compile the model
+        self.model.compile(
+            optimizer='adam',
+            loss='sparse_categorical_crossentropy',
+            metrics=['accuracy']
+        )
 
-            reduce_lr = ReduceLROnPlateau(
-                monitor='val_accuracy',     # Monitor validation loss to adjust learning rate
-                factor=0.5,             # Reduce learning rate by half each time
-                patience=3,             # Wait 3 epochs for improvement before reducing the learning rate
-                min_lr=1e-6,            # Set a very low minimum learning rate
-                verbose=1               # Print updates when the learning rate is reduced
-            )
+        reduce_lr = ReduceLROnPlateau(
+            monitor='val_accuracy',     # Monitor validation loss to adjust learning rate
+            factor=0.5,             # Reduce learning rate by half each time
+            patience=3,             # Wait 3 epochs for improvement before reducing the learning rate
+            min_lr=1e-6,            # Set a very low minimum learning rate
+            verbose=1               # Print updates when the learning rate is reduced
+        )
 
-            early_stop = EarlyStopping(
-                monitor='val_loss',
-                patience=10,
-                restore_best_weights=True,
+        early_stop = EarlyStopping(
+            monitor='val_loss',
+            patience=10,
+            restore_best_weights=True,
+            verbose=1
+        )
+
+        # Prepare the data pipeline
+        batch_size = 64
+
+        if self.use_validation_data:
+            train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train)) \
+                .shuffle(1024).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+            validation_dataset = tf.data.Dataset.from_tensor_slices((x_validation, y_validation)) \
+                .batch(batch_size).prefetch(tf.data.AUTOTUNE)
+            self.model.fit(
+                train_dataset,
+                epochs=self.epochs,
+                validation_data=validation_dataset,
+                callbacks=[reduce_lr, early_stop],
                 verbose=1
             )
 
-            # Prepare the data pipeline
-            batch_size = 128 if isinstance(strategy, tf.distribute.TPUStrategy) else 64  # Adjust batch size for TPU
+        else:
+          self.model.fit(
+                x_train, y_train,
+                epochs=self.epochs,
+                validation_split=0.1,
+                callbacks=[reduce_lr, early_stop],
+                verbose=1
+            )
 
-            if self.use_validation_data:
-                train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train)) \
-                    .shuffle(1024).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-                validation_dataset = tf.data.Dataset.from_tensor_slices((x_validation, y_validation)) \
-                    .batch(batch_size).prefetch(tf.data.AUTOTUNE)
-                self.model.fit(
-                    train_dataset,
-                    epochs=self.epochs,
-                    validation_data=validation_dataset,
-                    callbacks=[reduce_lr, early_stop],
-                    verbose=2
-                )
+        self.evaluate_model(x_test, y_test)
 
-            else:
-              self.model.fit(
-                    x_train, y_train,
-                    epochs=self.epochs,
-                    validation_split=0.1,
-                    callbacks=[reduce_lr, early_stop],
-                    verbose=2
-                )
-
-            self.evaluate_model(x_test, y_test)
-
-            return
+        return
 
     def evaluate_model(self, x_test, y_test):
         # Evaluate the model on test data
