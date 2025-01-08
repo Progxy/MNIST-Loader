@@ -296,7 +296,7 @@ class DatasetGenerator:
     def extend_dataset(self, labels_file_prefix, images_file_prefix, label_mappings):
         extension_images, extension_labels = self.load_mnist_format_dataset(labels_file_prefix=labels_file_prefix, images_file_prefix=images_file_prefix)
         for idx, label in enumerate(extension_labels):
-            self.dataset[label_mappings[label]].append(extension_images[idx])
+            self.dataset[label_mappings[label]].append(cv2.resize(extension_images[idx], (self.width, self.height)))
         print("Dataset Extended")
         self.get_dataset_size(debug=True)
         return
