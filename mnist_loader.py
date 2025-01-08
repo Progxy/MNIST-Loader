@@ -178,10 +178,12 @@ class DatasetGenerator:
 
         return canvas
     
-    def get_dataset_size(self):
+    def get_dataset_size(self, debug = False):
         size = 0
         for label in self.labels:
             size += len(self.dataset[label])
+            if debug: print(f"label {label} contains {len(self.dataset[label])} images.")
+        if debug: print(f"The dataset contains {size} images in total.")
         return size
 
     def generate_dataset(self):
@@ -191,22 +193,6 @@ class DatasetGenerator:
             img_transformations.apply_all_transformations(self.extended_dataset)
             self.dataset[label] = img_transformations.get_images()
             print(f"Successfully generated {len(self.dataset[label])} images.")
-
-        if self.balance_dataset:
-            print("Balancing dataset...")
-            min_label_len = len(self.dataset[min(self.labels, key=lambda label: len(self.dataset[label]))])
-            print(f"Balancing the labels to {min_label_len}...")
-
-            for label in self.labels:
-                label_len = len(self.dataset[label])
-                original_element_cnt = len(self.images_paths_and_labels[label])
-                if label_len == min_label_len: continue
-                pop_indices = random.sample(range(original_element_cnt, label_len), label_len - min_label_len)
-                pop_indices.sort(reverse=True)  # Sort indices in descending order
-                for pop_idx in pop_indices:
-                    self.dataset[label].pop(pop_idx)
-
-            print("Balanced all the labels")
 
         dataset_size = self.get_dataset_size()
         if self.limit_size < dataset_size: 
@@ -226,16 +212,33 @@ class DatasetGenerator:
             pop_indices.sort(reverse=True)  # Sort indices in descending order
             for pop_idx in pop_indices:
                 self.dataset[label].pop(pop_idx)
-
-        dataset_size = self.get_dataset_size()
-        print(f"new dataset_size: {dataset_size}")
-        for label in self.labels:
-            print(f"label {label} len: {len(self.dataset[label])}")
+        
+        if self.limit_size < dataset_size: 
+            dataset_size = self.get_dataset_size()
+            print(f"new dataset_size: {dataset_size}")
+            for label in self.labels:
+                print(f"label {label} len: {len(self.dataset[label])}")
 
         return
     
     def store_dataset_as_mnist_format(self):
         assert (self.dataset != {})
+
+        if self.balance_dataset:
+            print("Balancing dataset...")
+            min_label_len = len(self.dataset[min(self.labels, key=lambda label: len(self.dataset[label]))])
+            print(f"Balancing the labels to {min_label_len}...")
+
+            for label in self.labels:
+                label_len = len(self.dataset[label])
+                original_element_cnt = len(self.images_paths_and_labels[label])
+                if label_len == min_label_len: continue
+                pop_indices = random.sample(range(original_element_cnt, label_len), label_len - min_label_len)
+                pop_indices.sort(reverse=True)  # Sort indices in descending order
+                for pop_idx in pop_indices:
+                    self.dataset[label].pop(pop_idx)
+
+            print("Balanced all the labels")
 
         labels_file_name = f"{self.labels_file_prefix}-idx1-ubyte"
         if self.use_compression: labels_file_name += ".gz"
@@ -289,10 +292,21 @@ class DatasetGenerator:
         print("File generated successfully.")
 
         return
+    
+    def extend_dataset(self, labels_file_prefix, images_file_prefix, label_mappings):
+        extension_images, extension_labels = self.load_mnist_format_dataset(labels_file_prefix=labels_file_prefix, images_file_prefix=images_file_prefix)
+        for idx, label in enumerate(extension_labels):
+            self.dataset[label_mappings[label]].append(extension_images[idx])
+        print("Dataset Extended")
+        self.get_dataset_size(debug=True)
+        return
 
-    def load_mnist_format_dataset(self):
-        label_path = f"{self.labels_file_prefix}-idx1-ubyte"
-        image_path = f"{self.images_file_prefix}-idx3-ubyte"
+    def load_mnist_format_dataset(self, labels_file_prefix = "", images_file_prefix = ""):
+        if labels_file_prefix == "" and images_file_prefix == "":
+            labels_file_prefix, images_file_prefix = self.labels_file_prefix, self.images_file_prefix
+
+        label_path = f"{labels_file_prefix}-idx1-ubyte"
+        image_path = f"{images_file_prefix}-idx3-ubyte"
         if self.use_compression: 
             label_path += ".gz"
             image_path += ".gz"
@@ -303,9 +317,9 @@ class DatasetGenerator:
             labels_data = f.read()
 
         if self.use_compression: labels_data = gzip.decompress(labels_data)
-        magic, size = struct.unpack('>II', labels_data[:8])
+        magic, labels_size = struct.unpack('>II', labels_data[:8])
         assert (magic == 2049)
-        print(f"magic: {magic}, size: {size}")
+        print(f"magic: {magic}, labels_size: {labels_size}")
         labels = np.frombuffer(labels_data[8:], dtype=np.uint8).tolist()
 
         images = []
@@ -314,12 +328,12 @@ class DatasetGenerator:
             images_data = f.read()
 
         if self.use_compression: images_data = gzip.decompress(images_data)
-        magic, size, rows, cols = struct.unpack('>IIII', images_data[:16])
-        print(f"magic: {magic}, size: {size}, rows: {rows}, cols: {cols}")
-        assert (magic == 2051)
-        num_pixels = size * rows * cols
+        magic, images_size, rows, cols = struct.unpack('>IIII', images_data[:16])
+        print(f"magic: {magic}, images_size: {images_size}, rows: {rows}, cols: {cols}")
+        assert (magic == 2051 and images_size == labels_size)
+        num_pixels = images_size * rows * cols
         image_data = np.frombuffer(images_data[16:16+num_pixels], dtype=np.uint8)
-        images = image_data.reshape((size, rows, cols))
+        images = image_data.reshape((images_size, rows, cols))
             
         return images, labels
 
@@ -378,10 +392,15 @@ if __name__ == "__main__":
         # Find all the paths except the ones used for the test dataset
         train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4])
 
-        # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --   -- max dataset size --                                    -- extend dataset with more transformations --
-        dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels,        width=width, height=32,           limit_size=0,    use_compression=True,          extended_dataset=False, balance_dataset = True)
+        # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --         -- max dataset size --                      -- extend dataset with more transformations --
+        dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels, width=width, height=32,           limit_size=0,    use_compression=True,          extended_dataset=False,              balance_dataset = True)
         # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
         dataset_generator.generate_dataset()
+        
+        # Extend dataset with the emnist letters dataset
+        emnist_labels = [4, 4, 2, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 1, 4]
+        dataset_generator.extend_dataset(labels_file_prefix="./dataset/emnist-letters-train-labels", images_file_prefix="./dataset/emnist-letters-train-images", label_mappings=emnist_labels)
+
         # Save the dataset using the mnist format
         dataset_generator.store_dataset_as_mnist_format()
 
@@ -397,15 +416,16 @@ if __name__ == "__main__":
         # Do the same for the test dataset
         dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=test_limit, use_compression=True, extended_dataset=False, balance_dataset = True)
         dataset_generator.generate_dataset()
+        dataset_generator.extend_dataset(labels_file_prefix="./dataset/emnist-letters-test-labels", images_file_prefix="./dataset/emnist-letters-test-images", label_mappings=emnist_labels)
         dataset_generator.store_dataset_as_mnist_format()
 
     else:
         # To load the dataset specify the prefixes as above
-        dataset_viewer = DatasetGenerator("./gzip/emnist-balanced-train-labels", "./gzip/emnist-balanced-train-images", use_compression=True, read_only=True)
+        dataset_viewer = DatasetGenerator("./dataset/emnist-letters-train-labels", "./dataset/emnist-letters-train-images", use_compression=True, read_only=True)
         # load the labels and the images
         x_train, y_train = dataset_viewer.load_mnist_format_dataset()
         # Plot every image inside x_train
 
         #labels = ['g', 'y', 'b', 't', "invalid"]
-        labels = [chr(48), chr(49), chr(50), chr(51), chr(52), chr(53), chr(54), chr(55), chr(56), chr(57), chr(65), chr(66), chr(67), chr(68), chr(69), chr(70), chr(71), chr(72), chr(73), chr(74), chr(75), chr(76), chr(77), chr(78), chr(79), chr(80), chr(81), chr(82), chr(83), chr(84), chr(85), chr(86), chr(87), chr(88), chr(89), chr(90), chr(97), chr(98), chr(100), chr(101), chr(102), chr(103), chr(104), chr(110), chr(113), chr(114), chr(116)]
+        labels = [None, chr(65), chr(66), chr(67), chr(68), chr(69), chr(70), chr(71), chr(72), chr(73), chr(74), chr(75), chr(76), chr(77), chr(78), chr(79), chr(80), chr(81), chr(82), chr(83), chr(84), chr(85), chr(86), chr(87), chr(88), chr(89), chr(90)]
         dataset_viewer.show_dataset(x_train, y_train, labels)
