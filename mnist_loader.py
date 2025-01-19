@@ -65,9 +65,9 @@ class Transformations:
     def apply_all_transformations(self, extended_transformations):
         self.apply_scaling()
         self.apply_rotation()
-        self.apply_flipping()
+        self.apply_contrast_adjustment()
         if extended_transformations:
-            self.apply_contrast_adjustment()
+            self.apply_flipping()
         self.apply_gaussian_noise()
         return
     
@@ -84,11 +84,9 @@ class Transformations:
         return self.images
 
 class DatasetGenerator:
-    def __init__(self, labels_file_prefix, images_file_prefix, images_paths_and_labels = {}, width = 28, height = 28, noise_cnt = 10, limit_size = 0, use_compression = False, extended_dataset = False, balance_dataset = False, read_only=False):
-        self.labels_file_prefix = labels_file_prefix
-        assert (self.labels_file_prefix != "")
-        self.images_file_prefix = images_file_prefix
-        assert (self.images_file_prefix != "")
+    def __init__(self, dataset_prefix, images_paths_and_labels = {}, width = 28, height = 28, noise_cnt = 10, limit_size = 0, use_compression = False, extended_dataset = False, balance_dataset = False, read_only=False):
+        self.dataset_prefix = dataset_prefix
+        assert (self.dataset_prefix != "")
         
         self.use_compression = use_compression
         self.labels = list(images_paths_and_labels.keys())
@@ -104,6 +102,8 @@ class DatasetGenerator:
         self.height = height
         self.extended_dataset = extended_dataset
         self.images_paths_and_labels = images_paths_and_labels
+        self.sets_names = []
+        self.sets = []
 
         self.images = {}
         self.read_images()
@@ -221,75 +221,116 @@ class DatasetGenerator:
 
         return
     
-    def store_dataset_as_mnist_format(self):
-        assert (self.dataset != {})
+    def split_dataset(self, training_split = 75, validation_split = 0, test_split = 25):
+        assert(training_split + validation_split + test_split == 100)
 
-        if self.balance_dataset:
-            print("Balancing dataset...")
-            min_label_len = len(self.dataset[min(self.labels, key=lambda label: len(self.dataset[label]))])
-            print(f"Balancing the labels to {min_label_len}...")
+        print("Balancing dataset...")
+        min_label_len = len(self.dataset[min(self.labels, key=lambda label: len(self.dataset[label]))])
+        print(f"Balancing the labels to {min_label_len}...")
 
+        for label in self.labels:
+            label_len = len(self.dataset[label])
+            original_element_cnt = len(self.images_paths_and_labels[label])
+            if label_len == min_label_len: continue
+            pop_indices = random.sample(range(original_element_cnt, label_len), label_len - min_label_len)
+            pop_indices.sort(reverse=True)  # Sort indices in descending order
+            for pop_idx in pop_indices:
+                self.dataset[label].pop(pop_idx)
+
+        print("Balanced all the labels")
+
+        print(f"Splitting dataset in training set: {training_split}%, validation split: {validation_split}% and test split: {test_split}%...")
+        dataset_size = len(self.dataset[0])
+
+        if training_split > 0:
+            training_set = {index: [] for index in self.labels}
+            train_size = (dataset_size // 100) * training_split
             for label in self.labels:
                 label_len = len(self.dataset[label])
-                original_element_cnt = len(self.images_paths_and_labels[label])
-                if label_len == min_label_len: continue
-                pop_indices = random.sample(range(original_element_cnt, label_len), label_len - min_label_len)
+                pop_indices = random.sample(range(0, label_len), train_size)
                 pop_indices.sort(reverse=True)  # Sort indices in descending order
                 for pop_idx in pop_indices:
-                    self.dataset[label].pop(pop_idx)
+                    training_set[label].append(self.dataset[label].pop(pop_idx))
+            self.sets_names.append("train")
+            self.sets.append(training_set)
+            print(f"Created training split containing {train_size} images for each label.")
 
-            print("Balanced all the labels")
+        if validation_split > 0:
+            validation_set = {index: [] for index in self.labels}
+            validation_size = (dataset_size // 100) * validation_split
+            for label in self.labels:
+                label_len = len(self.dataset[label])
+                pop_indices = random.sample(range(0, label_len), validation_size)
+                pop_indices.sort(reverse=True)  # Sort indices in descending order
+                for pop_idx in pop_indices:
+                    validation_set[label].append(self.dataset[label].pop(pop_idx))
+            self.sets_names.append("validation")
+            self.sets.append(validation_set)
+            print(f"Created validation split containing {validation_size} images for each label.")
 
-        labels_file_name = f"{self.labels_file_prefix}-idx1-ubyte"
-        if self.use_compression: labels_file_name += ".gz"
-        labels_magic = 2049
-        
-        size = 0
-        for label in self.labels:
-            size += len(self.dataset[label])
+        if test_split > 0:
+            test_set = {index: [] for index in self.labels}
+            for label in self.labels:
+                test_set[label] = self.dataset[label]
+            self.sets_names.append("test")
+            self.sets.append(test_set)
+            print(f"Created test split containing {len(test_set[0])} images for each label.")
 
-        print(f"Generating file {labels_file_name} with {size} labels...")
-        labels_data = b""
-        labels_data += struct.pack(">I", labels_magic)
-        labels_data += struct.pack(">I", size)
-        for label in self.labels:
-            labels_data += struct.pack(">B", label) * len(self.dataset[label])
-        
-        print("Writing data to file...")
-        
-        if self.use_compression: 
-            with gzip.open(labels_file_name, 'wb', compresslevel=6) as f:
-                f.write(labels_data)
-        else:
-            with open(labels_file_name, "wb") as f:
-                f.write(labels_data)
+        return
+    
+    def store_dataset_as_mnist_format(self):
+        assert (self.dataset != {})
+        for idx, set_data in enumerate(self.sets):
+            labels_file_name = f"{self.dataset_prefix}-{self.sets_names[idx]}-labels-idx1-ubyte"
+            if self.use_compression: labels_file_name += ".gz"
+            labels_magic = 2049
+            
+            size = 0
+            for label in self.labels:
+                size += len(set_data[label])
 
-        print("File generated successfully.")
-        
-        images_file_name = f"{self.images_file_prefix}-idx3-ubyte"
-        if self.use_compression: images_file_name += ".gz"
-        images_magic = 2051
+            print(f"Generating file {labels_file_name} with {size} labels...")
+            labels_data = b""
+            labels_data += struct.pack(">I", labels_magic)
+            labels_data += struct.pack(">I", size)
+            for label in self.labels:
+                labels_data += struct.pack(">B", label) * len(set_data[label])
+            
+            print("Writing data to file...")
+            
+            if self.use_compression: 
+                with gzip.open(labels_file_name, 'wb', compresslevel=6) as f:
+                    f.write(labels_data)
+            else:
+                with open(labels_file_name, "wb") as f:
+                    f.write(labels_data)
 
-        print(f"Generating file {images_file_name} with {size} images...")
+            print("File generated successfully.")
+            
+            images_file_name = f"{self.dataset_prefix}-{self.sets_names[idx]}-images-idx3-ubyte"
+            if self.use_compression: images_file_name += ".gz"
+            images_magic = 2051
 
-        images_data = b''
-        images_data += struct.pack(">I", images_magic)
-        images_data += struct.pack(">I", size)
-        images_data += struct.pack(">I", self.height)
-        images_data += struct.pack(">I", self.width)
-        for label in self.labels:
-            images_data += b''.join(image.tobytes() for image in self.dataset[label])
+            print(f"Generating file {images_file_name} with {size} images...")
 
-        print("Writing data to file...")
+            images_data = b''
+            images_data += struct.pack(">I", images_magic)
+            images_data += struct.pack(">I", size)
+            images_data += struct.pack(">I", self.height)
+            images_data += struct.pack(">I", self.width)
+            for label in self.labels:
+                images_data += b''.join(image.tobytes() for image in set_data[idx])
 
-        if self.use_compression: 
-            with gzip.open(images_file_name, 'wb', compresslevel=6) as f:
-                f.write(images_data)
-        else:
-            with open(images_file_name, "wb") as f:
-                f.write(images_data)
+            print("Writing data to file...")
 
-        print("File generated successfully.")
+            if self.use_compression: 
+                with gzip.open(images_file_name, 'wb', compresslevel=6) as f:
+                    f.write(images_data)
+            else:
+                with open(images_file_name, "wb") as f:
+                    f.write(images_data)
+
+            print("File generated successfully.")
 
         return
     
@@ -391,33 +432,23 @@ if __name__ == "__main__":
         height = 32
 
         # Find all the paths except the ones used for the test dataset
-        train_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:8])
+        paths_and_labels = find_dataset_images("./example", exclude_substrings=[])
 
-        # First generate the dataset:              -- labels_prefix --                   -- images prefix --                                  -- width & height --         -- max dataset size --                      -- extend dataset with more transformations --
-        dataset_generator = DatasetGenerator("./dataset/my-dataset-train-labels", "./dataset/my-dataset-train-images", train_paths_and_labels, width=width, height=32,           limit_size=0,    use_compression=True,          extended_dataset=False,              balance_dataset = True)
+        dataset_generator = DatasetGenerator(dataset_prefix="./dataset/my-dataset", images_paths_and_labels=paths_and_labels, width=width, height=height, limit_size=0, use_compression=True, extended_dataset=False, balance_dataset = True)
         # Generate multiple transformations of the given images, effectively populating the dataset (which at this point is a dictionary)
         dataset_generator.generate_dataset()
         
         # Extend dataset with the emnist letters dataset
-        emnist_labels = [-1, -1, 2, -1, -1, -1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 3, -1, -1, -1, -1, 1, -1]
-        dataset_generator.extend_dataset(labels_file_prefix="./dataset/emnist-letters-train-labels", images_file_prefix="./dataset/emnist-letters-train-images", label_mappings=emnist_labels)
+        emnist_labels = [-1] * 62
+        emnist_labels[11] = 2
+        emnist_labels[16] = 0
+        emnist_labels[29] = 3
+        emnist_labels[34] = 1
+        dataset_generator.extend_dataset(labels_file_prefix="./dataset/emnist-byclass-train-labels", images_file_prefix="./dataset/emnist-byclass-train-images", label_mappings=emnist_labels)
+        dataset_generator.extend_dataset(labels_file_prefix="./dataset/emnist-byclass-test-labels", images_file_prefix="./dataset/emnist-byclass-test-images", label_mappings=emnist_labels)
 
         # Save the dataset using the mnist format
-        dataset_generator.store_dataset_as_mnist_format()
-
-        # validation_limit = (dataset_generator.get_dataset_size() // 75) * 10 # Set the size to be the 10% while the train to be the 75%
-        # validation_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4] + substrings[8:])
-        # # Do the same for the test dataset
-        # dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, width, height, 7, limit_size=validation_limit, use_compression=True, extended_dataset=False, balance_dataset=True)
-        # dataset_generator.generate_dataset()
-        # dataset_generator.store_dataset_as_mnist_format()
-
-        test_limit = (dataset_generator.get_dataset_size() // 75) * 25 # Set the size to be the 15% while the train to be the 75%
-        test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[8:])
-        # Do the same for the test dataset
-        dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=test_limit, use_compression=True, extended_dataset=False, balance_dataset = True)
-        dataset_generator.generate_dataset()
-        dataset_generator.extend_dataset(labels_file_prefix="./dataset/emnist-letters-test-labels", images_file_prefix="./dataset/emnist-letters-test-images", label_mappings=emnist_labels)
+        dataset_generator.split_dataset(training_split=75, validation_split=10, test_split=15)
         dataset_generator.store_dataset_as_mnist_format()
 
     else:
