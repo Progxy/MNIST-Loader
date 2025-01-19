@@ -405,15 +405,15 @@ if __name__ == "__main__":
         # Save the dataset using the mnist format
         dataset_generator.store_dataset_as_mnist_format()
 
-        validation_limit = (dataset_generator.get_dataset_size() // 75) * 10 # Set the size to be the 10% while the train to be the 75%
-        validation_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4] + substrings[8:])
-        # Do the same for the test dataset
-        dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, width, height, 7, limit_size=validation_limit, use_compression=True, extended_dataset=False, balance_dataset=True)
-        dataset_generator.generate_dataset()
-        dataset_generator.store_dataset_as_mnist_format()
+        # validation_limit = (dataset_generator.get_dataset_size() // 75) * 10 # Set the size to be the 10% while the train to be the 75%
+        # validation_paths_and_labels = find_dataset_images("./example", exclude_substrings=substrings[:4] + substrings[8:])
+        # # Do the same for the test dataset
+        # dataset_generator = DatasetGenerator("./dataset/my-dataset-validation-labels", "./dataset/my-dataset-validation-images", validation_paths_and_labels, width, height, 7, limit_size=validation_limit, use_compression=True, extended_dataset=False, balance_dataset=True)
+        # dataset_generator.generate_dataset()
+        # dataset_generator.store_dataset_as_mnist_format()
 
-        test_limit = (dataset_generator.get_dataset_size() // 75) * 15 # Set the size to be the 15% while the train to be the 75%
-        test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[4:])
+        test_limit = (dataset_generator.get_dataset_size() // 75) * 25 # Set the size to be the 15% while the train to be the 75%
+        test_paths_and_labels = find_dataset_images("./example",exclude_substrings=substrings[8:])
         # Do the same for the test dataset
         dataset_generator = DatasetGenerator("./dataset/my-dataset-test-labels", "./dataset/my-dataset-test-images", test_paths_and_labels, width, height, 7, limit_size=test_limit, use_compression=True, extended_dataset=False, balance_dataset = True)
         dataset_generator.generate_dataset()
