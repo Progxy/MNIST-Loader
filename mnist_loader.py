@@ -296,7 +296,8 @@ class DatasetGenerator:
     def extend_dataset(self, labels_file_prefix, images_file_prefix, label_mappings):
         extension_images, extension_labels = self.load_mnist_format_dataset(labels_file_prefix=labels_file_prefix, images_file_prefix=images_file_prefix)
         for idx, label in enumerate(extension_labels):
-            self.dataset[label_mappings[label]].append(cv2.resize(extension_images[idx], (self.width, self.height)))
+            if label_mappings[label] > 0:
+                self.dataset[label_mappings[label]].append(cv2.resize(extension_images[idx], (self.width, self.height)))
         print("Dataset Extended")
         self.get_dataset_size(debug=True)
         return
@@ -374,10 +375,10 @@ def find_dataset_images(folder_path, exclude_substrings=[]):
         if f.endswith('.png') and f.startswith('t') and not should_exclude(f)
     ]
 
-    paths_and_labels[4] = [
-        os.path.join(folder_path, f) for f in os.listdir(folder_path)
-        if f.endswith('.png') and f.startswith('invalid') and not should_exclude(f)
-    ]
+    # paths_and_labels[4] = [
+    #     os.path.join(folder_path, f) for f in os.listdir(folder_path)
+    #     if f.endswith('.png') and f.startswith('invalid') and not should_exclude(f)
+    # ]
 
     return paths_and_labels
 
@@ -398,7 +399,7 @@ if __name__ == "__main__":
         dataset_generator.generate_dataset()
         
         # Extend dataset with the emnist letters dataset
-        emnist_labels = [4, 4, 2, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 1, 4]
+        emnist_labels = [-1, -1, 2, -1, -1, -1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 3, -1, -1, -1, -1, 1, -1]
         dataset_generator.extend_dataset(labels_file_prefix="./dataset/emnist-letters-train-labels", images_file_prefix="./dataset/emnist-letters-train-images", label_mappings=emnist_labels)
 
         # Save the dataset using the mnist format
