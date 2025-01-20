@@ -35,7 +35,7 @@ class Transformations:
                 sheared = cv2.warpAffine(img.copy(), M, (width, height))
                 self.images.append(sheared)
 
-    def apply_rotation(self, angles=[-15, -10, 0, 10, 15]):
+    def apply_rotation(self, angles=[-10, -5, 0, 5, 10]):
         for angle in angles:
             for img in self.images[:]:
                 height, width = img.shape[:2]
@@ -104,6 +104,8 @@ class DatasetGenerator:
         self.images_paths_and_labels = images_paths_and_labels
         self.sets_names = []
         self.sets = []
+        self.splitting_info = []
+        self.is_extended = False
 
         self.images = {}
         self.read_images()
@@ -253,6 +255,8 @@ class DatasetGenerator:
                     training_set[label].append(self.dataset[label].pop(pop_idx))
             self.sets_names.append("train")
             self.sets.append(training_set)
+            splitting_info = {'size': train_size, 'size_perc': training_split}
+            self.splitting_info.append(splitting_info)
             print(f"Created training split containing {train_size} images for each label.")
 
         if validation_split > 0:
@@ -266,6 +270,8 @@ class DatasetGenerator:
                     validation_set[label].append(self.dataset[label].pop(pop_idx))
             self.sets_names.append("validation")
             self.sets.append(validation_set)
+            splitting_info = {'size': validation_size, 'size_perc': validation_split}
+            self.splitting_info.append(splitting_info)
             print(f"Created validation split containing {validation_size} images for each label.")
 
         if test_split > 0:
@@ -274,8 +280,29 @@ class DatasetGenerator:
                 test_set[label] = self.dataset[label]
             self.sets_names.append("test")
             self.sets.append(test_set)
-            print(f"Created test split containing {len(test_set[0])} images for each label.")
+            test_size = len(test_set[0])
+            splitting_info = {'size': test_size, 'size_perc': test_split}
+            self.splitting_info.append(splitting_info)
+            print(f"Created test split containing {test_size} images for each label.")
 
+        return
+    
+    def generate_info_txt(self, file_name = "dataset_info.txt"):
+        print(f"Generating dataset info: {file_name}...")
+        with open(file_name, "w") as file:
+            file.write("Dataset Info: \n")
+            file.write(f" - Extended dataset: {self.is_extended}.\n")
+            file.write(f" - Extended data augmentation: {self.extended_dataset}.\n")
+            file.write(f" - Sets:\n")
+            for idx, set_name in enumerate(self.sets_names):
+                file.write(" ------------------------------------------------------------------------------------- \n")
+                file.write(f" \t- Set '{set_name}':\n")
+                file.write(f" \t- Labels Cnt: {len(self.labels)}.\n")
+                file.write(f" \t- Size: {self.splitting_info[idx]['size']} images for each label.\n")
+                file.write(f" \t- Size: {self.splitting_info[idx]['size_perc']}% of the total size of the dataset.\n")
+                file.write(f" \t- Images with size {self.height} x {self.width}.\n")
+                file.write(" ------------------------------------------------------------------------------------- \n")
+        print("File generated successfully.")
         return
     
     def store_dataset_as_mnist_format(self):
@@ -319,7 +346,7 @@ class DatasetGenerator:
             images_data += struct.pack(">I", self.height)
             images_data += struct.pack(">I", self.width)
             for label in self.labels:
-                images_data += b''.join(image.tobytes() for image in set_data[idx])
+                images_data += b''.join(image.tobytes() for image in set_data[label])
 
             print("Writing data to file...")
 
@@ -341,6 +368,7 @@ class DatasetGenerator:
                 self.dataset[label_mappings[label]].append(cv2.resize(extension_images[idx], (self.width, self.height)))
         print("Dataset Extended")
         self.get_dataset_size(debug=True)
+        self.is_extended = True
         return
 
     def load_mnist_format_dataset(self, labels_file_prefix = "", images_file_prefix = ""):
@@ -416,15 +444,10 @@ def find_dataset_images(folder_path, exclude_substrings=[]):
         if f.endswith('.png') and f.startswith('t') and not should_exclude(f)
     ]
 
-    # paths_and_labels[4] = [
-    #     os.path.join(folder_path, f) for f in os.listdir(folder_path)
-    #     if f.endswith('.png') and f.startswith('invalid') and not should_exclude(f)
-    # ]
-
     return paths_and_labels
 
 if __name__ == "__main__":
-    generate = False # Change between generating and displaying
+    generate = True # Change between generating and displaying
     if generate:
         #        --   validation test --      test set      --                                  train set                 --
         substrings = ["bpen", "pencil", "boh.png", "vpencil", "bohpenn", "hpencil", "blpen", "vpen", "g_", "y_", "b_", "t_"]
@@ -448,12 +471,13 @@ if __name__ == "__main__":
         dataset_generator.extend_dataset(labels_file_prefix="./dataset/emnist-byclass-test-labels", images_file_prefix="./dataset/emnist-byclass-test-images", label_mappings=emnist_labels)
 
         # Save the dataset using the mnist format
-        dataset_generator.split_dataset(training_split=75, validation_split=10, test_split=15)
+        dataset_generator.split_dataset(training_split=70, validation_split=15, test_split=15)
         dataset_generator.store_dataset_as_mnist_format()
+        dataset_generator.generate_info_txt(file_name="./dataset/my-dataset-dataset_info.txt")
 
     else:
         # To load the dataset specify the prefixes as above
-        dataset_viewer = DatasetGenerator(dataset_prefix="./dataset/my-dataset-train", use_compression=True, read_only=True)
+        dataset_viewer = DatasetGenerator(dataset_prefix="./dataset/my-dataset-validation", use_compression=True, read_only=True)
         #dataset_viewer = DatasetGenerator(dataset_prefix="./dataset/emnist-byclass-train", use_compression=True, read_only=True)
         # load the labels and the images
         x_train, y_train = dataset_viewer.load_mnist_format_dataset()
