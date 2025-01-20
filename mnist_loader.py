@@ -345,7 +345,7 @@ class DatasetGenerator:
 
     def load_mnist_format_dataset(self, labels_file_prefix = "", images_file_prefix = ""):
         if labels_file_prefix == "" and images_file_prefix == "":
-            labels_file_prefix, images_file_prefix = self.labels_file_prefix, self.images_file_prefix
+            labels_file_prefix, images_file_prefix = f"{self.dataset_prefix}-labels", f"{self.dataset_prefix}-images"
 
         label_path = f"{labels_file_prefix}-idx1-ubyte"
         image_path = f"{images_file_prefix}-idx3-ubyte"
