@@ -68,7 +68,7 @@ class Transformations:
         self.apply_contrast_adjustment()
         if extended_transformations:
             self.apply_flipping()
-        self.apply_gaussian_noise()
+            self.apply_gaussian_noise()
         return
     
     def noise_transformations(self, extended_transformation):
@@ -424,7 +424,7 @@ def find_dataset_images(folder_path, exclude_substrings=[]):
     return paths_and_labels
 
 if __name__ == "__main__":
-    generate = True # Change between generating and displaying
+    generate = False # Change between generating and displaying
     if generate:
         #        --   validation test --      test set      --                                  train set                 --
         substrings = ["bpen", "pencil", "boh.png", "vpencil", "bohpenn", "hpencil", "blpen", "vpen", "g_", "y_", "b_", "t_"]
@@ -453,11 +453,12 @@ if __name__ == "__main__":
 
     else:
         # To load the dataset specify the prefixes as above
-        dataset_viewer = DatasetGenerator("./dataset/emnist-letters-train-labels", "./dataset/emnist-letters-train-images", use_compression=True, read_only=True)
+        dataset_viewer = DatasetGenerator(dataset_prefix="./dataset/my-dataset-train", use_compression=True, read_only=True)
+        #dataset_viewer = DatasetGenerator(dataset_prefix="./dataset/emnist-byclass-train", use_compression=True, read_only=True)
         # load the labels and the images
         x_train, y_train = dataset_viewer.load_mnist_format_dataset()
         # Plot every image inside x_train
 
-        #labels = ['g', 'y', 'b', 't', "invalid"]
-        labels = [None, chr(65), chr(66), chr(67), chr(68), chr(69), chr(70), chr(71), chr(72), chr(73), chr(74), chr(75), chr(76), chr(77), chr(78), chr(79), chr(80), chr(81), chr(82), chr(83), chr(84), chr(85), chr(86), chr(87), chr(88), chr(89), chr(90)]
+        labels = ['g', 'y', 'b', 't']
+        #labels = [chr(48), chr(49), chr(50), chr(51), chr(52), chr(53), chr(54), chr(55), chr(56), chr(57), chr(65), chr(66), chr(67), chr(68), chr(69), chr(70), chr(71), chr(72), chr(73), chr(74), chr(75), chr(76), chr(77), chr(78), chr(79), chr(80), chr(81), chr(82), chr(83), chr(84), chr(85), chr(86), chr(87), chr(88), chr(89), chr(90), chr(97), chr(98), chr(99), chr(100), chr(101), chr(102), chr(103), chr(104), chr(105), chr(106), chr(107), chr(108), chr(109), chr(110), chr(111), chr(112), chr(113), chr(114), chr(115), chr(116), chr(117), chr(118), chr(119), chr(120), chr(121), chr(122)]
         dataset_viewer.show_dataset(x_train, y_train, labels)
