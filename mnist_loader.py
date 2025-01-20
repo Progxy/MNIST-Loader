@@ -471,7 +471,7 @@ if __name__ == "__main__":
         dataset_generator.extend_dataset(labels_file_prefix="./dataset/emnist-byclass-test-labels", images_file_prefix="./dataset/emnist-byclass-test-images", label_mappings=emnist_labels)
 
         # Save the dataset using the mnist format
-        dataset_generator.split_dataset(training_split=70, validation_split=15, test_split=15)
+        dataset_generator.split_dataset(training_split=75, validation_split=10, test_split=15)
         dataset_generator.store_dataset_as_mnist_format()
         dataset_generator.generate_info_txt(file_name="./dataset/my-dataset-dataset_info.txt")
 
